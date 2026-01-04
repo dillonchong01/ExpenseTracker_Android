@@ -50,7 +50,7 @@ A Flutter-based expense tracking application for managing expenses, budgets, sav
 ## 📱 Installation
 
 ### Android APK
-1. Download `expensetracker.apk` from the [GitHub releases](https://github.com/yourusername/expense-tracker/releases)
+1. Download `expensetracker.apk` from the [GitHub releases](https://github.com/dillonchong01/ExpenseTracker_Android/releases/)
 2. Enable "Install from Unknown Sources" in your Android settings
 3. Open the APK file and follow installation prompts
 4. Launch the app and start tracking your expenses!
