@@ -1,6 +1,6 @@
 # 💰 Expense Tracker
 
-A Flutter-based expense tracking application for managing expenses, budgets, savings, and spending insights. Developed using Claude Code as part of a hands-on learning journey into mobile application development.
+A Flutter-based expense tracking application for managing expenses, budgets, savings, and spending insights. Developed using Claude Code to learn more about the process of mobile application development.
 
 ⚠️ Currently available for Android devices only. Web/IOS version only available for my personal use 🙂 
 
