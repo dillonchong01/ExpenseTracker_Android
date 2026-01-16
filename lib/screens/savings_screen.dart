@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
 import '../widgets/savings_line_chart.dart';
+import '../widgets/add_savings_dialog.dart';
 
 class SavingsScreen extends StatelessWidget {
   const SavingsScreen({super.key});
@@ -12,7 +13,10 @@ class SavingsScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Savings'),
         elevation: 0,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        surfaceTintColor: Colors.transparent,
       ),
+      backgroundColor: Theme.of(context).colorScheme.surface, // Fixed: Set background color
       body: Consumer<ExpenseProvider>(
         builder: (context, provider, child) {
           if (provider.isLoading) {
@@ -82,7 +86,7 @@ class SavingsScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Add your monthly savings in the Expenses tab.',
+                          'Add your monthly savings using the button below.',
                           style: textTheme.bodySmall?.copyWith(
                             fontSize: 14,
                             color: Colors.grey[500],
@@ -271,6 +275,21 @@ class SavingsScreen extends StatelessWidget {
           );
         },
       ),
+      // NEW: Add Savings button
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _addSavings(context),
+        icon: const Icon(Icons.add),
+        label: const Text('Add Savings'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  // NEW: Method to add savings
+  void _addSavings(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => const AddSavingsDialog(),
     );
   }
 

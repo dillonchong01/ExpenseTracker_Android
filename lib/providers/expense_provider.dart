@@ -6,17 +6,75 @@ class ExpenseProvider with ChangeNotifier {
   List<Expense> _expenses = [];
   DateTime _selectedMonth = DateTime.now();
   bool _isLoading = false;
+  String? _selectedCategory;
 
   List<Expense> get expenses => _expenses;
   DateTime get selectedMonth => _selectedMonth;
   bool get isLoading => _isLoading;
+  String? get selectedCategory => _selectedCategory;
 
   ExpenseProvider() {
     loadExpenses();
     _checkAndAddRecurringExpenses();
   }
 
-  // Check and add recurring expenses for the current month
+  void setSelectedCategory(String? category) {
+    _selectedCategory = category;
+    notifyListeners();
+  }
+
+  List<Expense> get filteredExpenses {
+    if (_selectedCategory == null || _selectedCategory == 'All') {
+      return _expenses;
+    }
+    return _expenses.where((e) => e.category == _selectedCategory).toList();
+  }
+
+  // NEW: Get expenses grouped by date (most recent first)
+  Map<DateTime, List<Expense>> getExpensesGroupedByDate() {
+    final Map<DateTime, List<Expense>> grouped = {};
+    
+    for (var expense in filteredExpenses) {
+      // Normalize date to midnight for grouping
+      final dateKey = DateTime(expense.date.year, expense.date.month, expense.date.day);
+      
+      if (!grouped.containsKey(dateKey)) {
+        grouped[dateKey] = [];
+      }
+      grouped[dateKey]!.add(expense);
+    }
+    
+    // Sort each day's expenses by time (most recent first)
+    grouped.forEach((date, expenses) {
+      expenses.sort((a, b) => b.date.compareTo(a.date));
+    });
+    
+    return grouped;
+  }
+
+  // NEW: Get sorted dates (most recent first)
+  List<DateTime> getSortedDates() {
+    final dates = getExpensesGroupedByDate().keys.toList();
+    dates.sort((a, b) => b.compareTo(a));
+    return dates;
+  }
+
+  // NEW: Get total savings for the selected month
+  double getTotalSavingsForMonth() {
+    final savingsExpenses = _expenses.where((e) => e.category == 'Savings');
+    return savingsExpenses.fold(0.0, (sum, expense) => sum + expense.price);
+  }
+
+  // NEW: Get remaining amount (requires income to be passed in)
+  double getRemainingAmount(double income) {
+    final totalSpent = totalSpending;
+    final savings = _expenses
+        .where((e) => e.category == 'Savings')
+        .fold(0.0, (sum, expense) => sum + expense.price);
+    
+    return income - totalSpent - savings;
+  }
+
   Future<void> _checkAndAddRecurringExpenses() async {
     final now = DateTime.now();
     
@@ -51,7 +109,6 @@ class ExpenseProvider with ChangeNotifier {
     }
   }
 
-  // Load expenses for the selected month
   Future<void> loadExpenses() async {
     _isLoading = true;
     notifyListeners();
@@ -65,7 +122,6 @@ class ExpenseProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Add a new expense
   Future<void> addExpense(Expense expense) async {
     await DatabaseHelper.instance.insertExpense(expense);
 
@@ -75,62 +131,62 @@ class ExpenseProvider with ChangeNotifier {
     }
   }
 
-  // Update an existing expense
   Future<void> updateExpense(Expense expense) async {
     await DatabaseHelper.instance.updateExpense(expense);
     await loadExpenses();
   }
 
-  // Delete an expense
   Future<void> deleteExpense(int id) async {
     await DatabaseHelper.instance.deleteExpense(id);
     await loadExpenses();
   }
 
-  // Change selected month
   void changeMonth(DateTime newMonth) {
     _selectedMonth = DateTime(newMonth.year, newMonth.month);
     loadExpenses();
   }
 
-  // Get all unique categories
   Future<List<String>> getAllCategories() async {
     return await DatabaseHelper.instance.getAllCategories();
   }
 
-  // Get all expenses across all time
   Future<List<Expense>> getAllExpensesEver() async {
     return await DatabaseHelper.instance.getAllExpenses();
   }
 
-  // Get total spending for the current month
   double get totalSpending {
-    return _expenses.fold(0.0, (sum, expense) => sum + expense.price);
+    return _expenses
+        .where((expense) => expense.category != 'Savings')
+        .fold(0.0, (sum, expense) => sum + expense.price);
   }
 
-  // Get spending by category for the current month
   Map<String, double> get spendingByCategory {
     final Map<String, double> categorySpending = {};
     for (var expense in _expenses) {
-      categorySpending[expense.category] =
-          (categorySpending[expense.category] ?? 0) + expense.price;
+      if (expense.category != 'Savings') {
+        categorySpending[expense.category] =
+            (categorySpending[expense.category] ?? 0) + expense.price;
+      }
     }
     return categorySpending;
   }
 
-  // Get weekly spending trend for the current month
   Future<List<double>> getWeeklySpending() async {
     final expenses = await DatabaseHelper.instance.getExpensesByMonth(
       _selectedMonth.year,
       _selectedMonth.month,
     );
 
+    final nonRecurringExpenses = expenses
+        .where((e) => !e.isRecurring && e.category != 'Savings')
+        .toList();
+
     final lastDay = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0);
     final totalDays = lastDay.day;
     final numWeeks = (totalDays / 7).ceil();
     final weeklySpending = List<double>.filled(numWeeks, 0.0);
 
-    for (var expense in expenses) {
+    for (var expense in nonRecurringExpenses) {
       final dayOfMonth = expense.date.day;
       final weekIndex = ((dayOfMonth - 1) / 7).floor();
       if (weekIndex < numWeeks) {
@@ -141,7 +197,6 @@ class ExpenseProvider with ChangeNotifier {
     return weeklySpending;
   }
 
-  // Get monthly spending trend for the last 6 months
   Future<Map<String, double>> getMonthlySpending() async {
     final Map<String, double> monthlySpending = {};
     
@@ -153,16 +208,14 @@ class ExpenseProvider with ChangeNotifier {
       );
       
       final monthKey = '${date.year}-${date.month.toString().padLeft(2, '0')}';
-      monthlySpending[monthKey] = expenses.fold(
-        0.0,
-        (sum, expense) => sum + expense.price,
-      );
+      monthlySpending[monthKey] = expenses
+          .where((e) => e.category != 'Savings')
+          .fold(0.0, (sum, expense) => sum + expense.price);
     }
 
     return monthlySpending;
   }
 
-  // Get all recurring expenses
   Future<List<Expense>> getRecurringExpenses() async {
     return await DatabaseHelper.instance.getRecurringExpenses();
   }

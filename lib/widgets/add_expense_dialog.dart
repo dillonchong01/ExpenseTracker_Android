@@ -8,8 +8,13 @@ import '../utils/constants.dart';
 
 class AddExpenseDialog extends StatefulWidget {
   final Expense? expense;
+  final String? forcedCategory; // NEW: Force a specific category
 
-  const AddExpenseDialog({super.key, this.expense});
+  const AddExpenseDialog({
+    super.key,
+    this.expense,
+    this.forcedCategory, // NEW: Optional forced category
+  });
 
   @override
   State<AddExpenseDialog> createState() => _AddExpenseDialogState();
@@ -40,10 +45,17 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
 
     _selectedDate = widget.expense?.date ?? DateTime.now();
 
-    final initialCategory = widget.expense?.category;
-    _selectedCategory = AppConstants.expenseCategories.contains(initialCategory)
-        ? initialCategory!
-        : AppConstants.expenseCategories.first;
+    // UPDATED: Handle forced category
+    if (widget.forcedCategory != null) {
+      // If a forced category is provided, use it
+      _selectedCategory = widget.forcedCategory!;
+    } else {
+      // Otherwise use existing expense category or first category
+      final initialCategory = widget.expense?.category;
+      _selectedCategory = AppConstants.expenseCategories.contains(initialCategory)
+          ? initialCategory!
+          : AppConstants.expenseCategories.first;
+    }
 
     _isRecurring = widget.expense?.isRecurring ?? false;
   }
@@ -109,6 +121,9 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
 
     final colorScheme = Theme.of(context).colorScheme;
 
+    // UPDATED: Determine if category should be locked
+    final bool isCategoryLocked = widget.forcedCategory != null;
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: SingleChildScrollView(
@@ -125,16 +140,22 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                       radius: 24,
                       backgroundColor: colorScheme.primaryContainer,
                       child: Icon(
-                        Icons.receipt_long,
+                        // NEW: Show savings icon if adding savings
+                        widget.forcedCategory == 'Savings'
+                            ? Icons.savings
+                            : Icons.receipt_long,
                         color: colorScheme.primary,
                       ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Text(
-                        widget.expense == null
-                            ? 'Add Expense'
-                            : 'Edit Expense',
+                        // NEW: Update title if adding savings
+                        widget.forcedCategory == 'Savings'
+                            ? 'Add Savings'
+                            : (widget.expense == null
+                                ? 'Add Expense'
+                                : 'Edit Expense'),
                         style: Theme.of(context)
                             .textTheme
                             .headlineSmall
@@ -166,6 +187,7 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
 
                 const SizedBox(height: 16),
 
+                // UPDATED: Category dropdown with lock support
                 DropdownButtonFormField<String>(
                   value: safeCategory,
                   decoration: InputDecoration(
@@ -177,6 +199,10 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                       borderRadius: BorderRadius.circular(14),
                     ),
                     filled: true,
+                    // NEW: Add visual indicator when locked
+                    suffixIcon: isCategoryLocked
+                        ? const Icon(Icons.lock, size: 20)
+                        : null,
                   ),
                   items: AppConstants.expenseCategories
                       .map(
@@ -186,13 +212,23 @@ class _AddExpenseDialogState extends State<AddExpenseDialog> {
                         ),
                       )
                       .toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _selectedCategory = value;
-                      });
-                    }
-                  },
+                  // NEW: Disable dropdown when category is forced
+                  onChanged: isCategoryLocked
+                      ? null
+                      : (value) {
+                          if (value != null) {
+                            setState(() {
+                              _selectedCategory = value;
+                            });
+                          }
+                        },
+                  // NEW: Grey out when disabled
+                  disabledHint: Text(
+                    safeCategory,
+                    style: TextStyle(
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
                 ),
 
                 const SizedBox(height: 16),
